@@ -16,7 +16,7 @@
         android:gravity="center"
         android:text="Plug in a Joystick/Gamepad.\nIn the PD patch, route message by axis/button name.\nSee HID example patch for details."
         android:textColor="@android:color/white"
-        android:textColorLink="@android:color/holo_blue_light"
+        android:textColorLink="#33B5E5"
         android:textSize="12dp" />
 
     <ListView

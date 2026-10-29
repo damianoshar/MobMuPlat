@@ -29,7 +29,7 @@ public class MMPControl extends RelativeLayout {
 		
 		int color = Color.TRANSPARENT;
         Drawable background = this.getBackground();
-        if (background instanceof ColorDrawable)
+        if (background instanceof ColorDrawable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB)
             color = ((ColorDrawable) background).getColor();
 		
 		this.setBackgroundColor(Color.TRANSPARENT);//without this, no widgets are viewable. no idea why!
@@ -54,7 +54,7 @@ public class MMPControl extends RelativeLayout {
 				messageArray.get(0).equals("enable") && 
 				(messageArray.get(1) instanceof Float)) {
 			this.setEnabled(((Float)(messageArray.get(1))).floatValue() > 0);
-			this.setAlpha(this.isEnabled() ? 1.0f : .2f );
+			if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) this.setAlpha(this.isEnabled() ? 1.0f : .2f );
 		}
 	}
 }

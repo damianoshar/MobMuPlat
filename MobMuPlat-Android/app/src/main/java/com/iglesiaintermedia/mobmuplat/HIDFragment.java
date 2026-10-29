@@ -5,6 +5,7 @@ import java.util.List;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -119,7 +120,8 @@ public class HIDFragment extends Fragment{
                 final int id = BASE_ID_AXIS_ITEM | axis;
                 TextColumn column = (TextColumn) mDataItems.get(id);
                 if (column == null) {
-                    column = new TextColumn(id, MotionEvent.axisToString(axis));
+                    column = new TextColumn(id, Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1
+                            ? MotionEvent.axisToString(axis) : Integer.toString(axis));
                     mDataItems.put(id, column);
                 }
                 column.setContent(Float.toString(state.getAxisValue(i)));
@@ -134,7 +136,8 @@ public class HIDFragment extends Fragment{
                 final int id = BASE_ID_KEY_ITEM | keyCode;
                 TextColumn column = (TextColumn) mDataItems.get(id);
                 if (column == null) {
-                    column = new TextColumn(id, KeyEvent.keyCodeToString(keyCode));
+                    column = new TextColumn(id, Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1
+                            ? KeyEvent.keyCodeToString(keyCode) : Integer.toString(keyCode));
                     mDataItems.put(id, column);
                 }
                 column.setContent(mResources.getString(state.isKeyPressed(i)

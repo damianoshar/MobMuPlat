@@ -37,6 +37,7 @@ import android.support.v4.app.FragmentManager.OnBackStackChangedListener;
 import android.support.v4.app.FragmentTransaction;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -63,6 +64,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -131,7 +133,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	//public final static float VERSION = 1.6f; //necc?
 
 	// important public!
-	public UsbMidiController usbMidiController;
+	public Object usbMidiController; // UsbMidiController on API 23+; Object to allow load on older platforms
 	public NetworkController networkController;
 
 	// new arch!
@@ -172,10 +174,12 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		getWindow().requestFeature(Window.FEATURE_ACTION_BAR);
-		//getActionBar().setDisplayShowTitleEnabled(true);
-		getActionBar().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
-		getActionBar().hide(); //necc on L, not necc on kitkat
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+			getWindow().requestFeature(Window.FEATURE_ACTION_BAR);
+			//getActionBar().setDisplayShowTitleEnabled(true);
+			getActionBar().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+			getActionBar().hide(); //necc on L, not necc on kitkat
+		}
 
 		//layout view 
 		setContentView(R.layout.activity_main);
@@ -195,10 +199,16 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		
 		//derive screen ratio
 		Display display = getWindowManager().getDefaultDisplay();
-		Point size = new Point();
-		display.getSize(size);
-		int width = size.x;
-		int height = size.y;
+		int width, height;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
+			Point size = new Point();
+			display.getSize(size);
+			width = size.x;
+			height = size.y;
+		} else {
+			width = display.getWidth();
+			height = display.getHeight();
+		}
 		float aspect = (float)height/width;
 		
 		if (deviceFromValues.equals("phone")) {
@@ -222,7 +232,9 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		PdPreferences.initPreferences(getApplicationContext());
 		initSensors();
 //		initLocation();
-		usbMidiController = new UsbMidiController(this);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			usbMidiController = new UsbMidiController(this);
+		}
 
 		//allow multicast
 		WifiManager wifi = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -253,7 +265,9 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 
 		// Go full screen and lay out to top of screen.
 		// Only on SDK >= 16. This means that patch will not go truly fullscreen on ICS. Separate layouts for 14+ vs 16+ for the fragment margins.
-		_topLayout.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+			_topLayout.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+		}
 
 		// axes for table
 		if (getDeviceNaturalOrientation() == Configuration.ORIENTATION_LANDSCAPE) _shouldSwapAxes = true;
@@ -413,9 +427,11 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		if (count > 0) {
 			title = getSupportFragmentManager().getBackStackEntryAt(count - 1).getName();
 		}
-		getActionBar().setTitle(title);
-		if (count == 0 && getActionBar().isShowing()) getActionBar().hide();
-		else if (count > 0 && !getActionBar().isShowing())getActionBar().show();
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && getActionBar() != null) {
+			getActionBar().setTitle(title);
+			if (count == 0 && getActionBar().isShowing()) getActionBar().hide();
+			else if (count > 0 && !getActionBar().isShowing())getActionBar().show();
+		}
 	}
 
 	@Override
@@ -441,7 +457,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 			// from dropbox, on andoird N, scheme = content, no MIME type
 			// Intent { act=android.intent.action.VIEW dat=content://com.dropbox.android.FileCache/filecache/d8b4e518-54ec-4a26-97a7-11adb2e39f90 flg=0x10000003 cmp=com.iglesiaintermedia.mobmuplat/.MainActivity (has extras) }
 
-			if (action.equals(Intent.ACTION_VIEW)){
+			if (action != null && action.equals(Intent.ACTION_VIEW)){
 				Uri dataUri = i.getData();
 				if(dataUri!=null){
 					if(VERBOSE)Log.i(TAG, "receive intent data " + dataUri.toString());
@@ -564,7 +580,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 
 	public void loadScene(String filenameToLoad) { //filename is relative to doc dir.
 		Log.i(TAG, "filename to load:"+filenameToLoad);
-		getActionBar().hide();
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && getActionBar() != null) getActionBar().hide();
 
 		String parentPathString =  new File(MainActivity.getDocumentsFolderPath(this), filenameToLoad).getParentFile().getAbsolutePath();
 		Log.i(TAG, "parentPathString to load:"+parentPathString);
@@ -592,7 +608,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		//don't bother with rotation for now...
 		stopLocationUpdates(); //move? handled in common reset?
 		
-		getActionBar().hide();
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && getActionBar() != null) getActionBar().hide();
 
         String path = MainActivity.getDocumentsFolderPath(this) + File.separator + filenameToLoad;
         ArrayList<String[]> originalAtomLines = PdParser.parsePatch(path);
@@ -974,15 +990,17 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	}
 	
 	public boolean setSampleRate(int rate) {
-		pdService.stopAudio();
+		if (pdService == null) return false;
 		try {
+			pdService.stopAudio();
 			pdService.initAudio(rate, -1, -1, -1);   // negative values will be replaced with defaults/preferences
 			//pdService.startAudio();
-		} catch (IOException e) {
+			pdService.startAudio();
+			return true;
+		} catch (Exception e) {
 			Log.e(TAG, "Audio init error: "+e.toString());
+			return false;
 		}
-		pdService.startAudio();
-		return true;
 	}
 
 	private void stopAudio() {
@@ -1051,7 +1069,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	}
 
 	public void launchSettings() { //launch the last settings frag we were looking at.
-		getActionBar().show();
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && getActionBar() != null) getActionBar().show();
 		launchFragment(_lastFrag, _lastFragTitle);
 	}
 
@@ -1364,7 +1382,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 			Object[] args = new Object[]{"/key", Integer.valueOf(keyCode)};
 			PdBase.sendList("fromSystem", args);
 			//don't consume - hardware hits show up here.
-		} else { //HID
+		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1) { //HID, API 12+
 			InputDeviceState state = getInputDeviceState(event);
 			if (state != null && state.onKeyDown(event)) { //pd message sent in state.onKeyUp/Down
 				if (_hidFragment!=null && _hidFragment.isVisible()) {
@@ -1381,7 +1399,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 			Object[] args = new Object[]{"/keyUp", Integer.valueOf(keyCode)};
 			PdBase.sendList("fromSystem", args);
 			//don't consume - hardware hits show up here.
-		} else { //HID
+		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1) { //HID, API 12+
 			InputDeviceState state = getInputDeviceState(event);
 			if (state != null && state.onKeyUp(event)) { //pd message sent in state.onKeyUp/Down
 				if (_hidFragment!=null && _hidFragment.isVisible()) {
@@ -1394,6 +1412,9 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 
 	@Override
 	public boolean onGenericMotionEvent(MotionEvent event) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB_MR1) {
+			return super.onGenericMotionEvent(event);
+		}
 		_inputManager.onGenericMotionEvent(event);
 
 		// Check that the event came from a joystick or gamepad since a generic
@@ -1419,34 +1440,80 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	private static final int IMPORT_FILES_REQUEST_CODE = 1234;
 	private static final int EXPORT_FILES_REQUEST_CODE = 1235;
 	public void requestImportFiles() {
-		Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-		intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-		intent.addCategory(Intent.CATEGORY_OPENABLE);
-		intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+		Intent intent;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+			intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+			intent.addCategory(Intent.CATEGORY_OPENABLE);
+			intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+		} else {
+			// Gingerbread has no Storage Access Framework.
+			intent = new Intent(Intent.ACTION_GET_CONTENT);
+			intent.addCategory(Intent.CATEGORY_OPENABLE);
+			intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+		}
 		intent.setType("*/*");
 //		String[] mimeTypes = new String[]{"application/x-binary,application/octet-stream"};
 //		if (mimeTypes.length > 0) {
 //			intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
 //		}
 
-   		startActivityForResult(Intent.createChooser(intent, "foo"), IMPORT_FILES_REQUEST_CODE);
+   		try {
+   			startActivityForResult(Intent.createChooser(intent, "Select file(s)"), IMPORT_FILES_REQUEST_CODE);
+   		} catch (ActivityNotFoundException e) {
+   			showAlert("No file picker is available on this device.");
+   		}
 	}
 
 	public void requestExportFiles(String filename) {
 		_exportFilename = filename;
-		Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-		intent.addCategory(Intent.CATEGORY_OPENABLE);
-		intent.setType("*/*"); // Set appropriate MIME type
-		intent.putExtra(Intent.EXTRA_TITLE, filename); // Default filename
-		startActivityForResult(intent, EXPORT_FILES_REQUEST_CODE);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+			intent.addCategory(Intent.CATEGORY_OPENABLE);
+			intent.setType("*/*"); // Set appropriate MIME type
+			intent.putExtra(Intent.EXTRA_TITLE, filename); // Default filename
+			startActivityForResult(intent, EXPORT_FILES_REQUEST_CODE);
+		} else {
+			exportFileToExternalStorage(filename);
+		}
+	}
+
+	private void exportFileToExternalStorage(String filename) {
+		File source = new File(MainActivity.getDocumentsFolderPath(this), filename);
+		File exportDir = new File(Environment.getExternalStorageDirectory(), "MobMuPlat");
+		if (!exportDir.exists()) {
+			exportDir.mkdirs();
+		}
+		String safeName = filename.replace('/', '_');
+		File destination = new File(exportDir, safeName);
+		FileInputStream inputStream = null;
+		FileOutputStream outputStream = null;
+		try {
+			inputStream = new FileInputStream(source);
+			outputStream = new FileOutputStream(destination);
+			byte[] buffer = new byte[1024];
+			int length;
+			while ((length = inputStream.read(buffer)) > 0) {
+				outputStream.write(buffer, 0, length);
+			}
+			showAlert("Exported to " + destination.getAbsolutePath());
+		} catch (IOException e) {
+			showAlert("Could not export " + filename + ": " + e.getMessage());
+		} finally {
+			try {
+				if (inputStream != null) inputStream.close();
+				if (outputStream != null) outputStream.close();
+			} catch (IOException ignored) {
+			}
+		}
 	}
 
 	@Override
 	public void onActivityResult(int requestCode, int resultCode,Intent resultData) {
 		if (requestCode == IMPORT_FILES_REQUEST_CODE && resultCode ==Activity.RESULT_OK) {
 			if (resultData == null) return;
-			// multi selection
-			if(resultData.getClipData() != null) {
+			// multi selection (Intent.getClipData is API 16+; Gingerbread returns a single data URI)
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN && resultData.getClipData() != null) {
 				int count = resultData.getClipData().getItemCount();
 				for (int i=0;i<count;i++) {
 					Uri uri = resultData.getClipData().getItemAt(i).getUri();
@@ -1467,7 +1534,28 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	}
 
 	private void importFileFromContentUri(Uri uri, boolean showAlert) {
-		if (uri == null || !uri.getScheme().equals("content")) {
+		if (uri == null) {
+			showAlert("Could not copy to MobMuPlat Documents");
+			return;
+		}
+
+		String scheme = uri.getScheme();
+		if ("file".equals(scheme)) {
+			// Some Gingerbread file managers return file:// URIs.
+			String filename = uri.getLastPathSegment();
+			if (filename == null) {
+				showAlert("Could not copy to MobMuPlat Documents");
+				return;
+			}
+			try {
+				InputStream is = new FileInputStream(new File(uri.getPath()));
+				copyInputStream(is, filename, showAlert);
+				_documentsFragment.refreshFileList();
+			} catch (FileNotFoundException e) {
+				showAlert("Could not copy to MobMuPlat Documents");
+			}
+			return;
+		} else if (!"content".equals(scheme)) {
 			showAlert("Could not copy to MobMuPlat Documents");
 			return;
 		}
@@ -1475,11 +1563,19 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		ContentResolver contentResolver = getContentResolver();
 		Cursor cursor = contentResolver.query(uri, null, null, null, null);
 		if (cursor == null || !cursor.moveToFirst()) return;
-		String	filename = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+		String filename = null;
+		int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+		if (nameIndex >= 0) filename = cursor.getString(nameIndex);
+		if (filename == null) filename = uri.getLastPathSegment();
 		String mimeType = contentResolver.getType(uri);
+		cursor.close();
 		try {
 			InputStream is = contentResolver.openInputStream(uri);
-			if (mimeType.equals("application/zip")) {
+			if (filename == null || is == null) {
+				showAlert("Could not copy to MobMuPlat Documents");
+				return;
+			}
+			if ("application/zip".equals(mimeType)) {
 				if(showAlert)Toast.makeText(this, "Unzipping " + filename + " to Documents", Toast.LENGTH_LONG).show();
 				new UnzipTask(is, filename, this).execute();
 			} else {

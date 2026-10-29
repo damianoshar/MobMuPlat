@@ -1,12 +1,11 @@
 package com.iglesiaintermedia.mobmuplat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.stream.Collectors;
 
 import android.graphics.Color;
-import android.media.midi.MidiDeviceInfo;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -19,13 +18,14 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ListView;
-import android.widget.Switch;
+import android.widget.Toast;
+import android.widget.ToggleButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 
 
 public class AudioMidiFragment extends Fragment implements Observer, SegmentedControlListener {
 
-	private UsbMidiController _usbMidiController;
+	private Object _usbMidiController; // UsbMidiController on API 23+
 	private ListView _listViewInput, _listViewOutput;
 
 	private SegmentedControlView _rateSeg;
@@ -38,14 +38,14 @@ public class AudioMidiFragment extends Fragment implements Observer, SegmentedCo
 				false);
 		
 		_usbMidiController = ((MainActivity)getActivity()).usbMidiController;
-		_usbMidiController.addObserver(this);
+		if (_usbMidiController != null) ((UsbMidiController)_usbMidiController).addObserver(this);
 
 		_listViewInput = (ListView)rootView.findViewById(R.id.listViewInput);
 		_listViewOutput = (ListView)rootView.findViewById(R.id.listViewOutput);
 
 		refreshList(); // Set up device names and adapters for midi in/out lists
 
-		Switch _backgroundAudioSwitch = (Switch)rootView.findViewById(R.id.switch1);
+		ToggleButton _backgroundAudioSwitch = (ToggleButton)rootView.findViewById(R.id.switch1);
 		_backgroundAudioSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			   @Override
 			   public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -92,6 +92,9 @@ public class AudioMidiFragment extends Fragment implements Observer, SegmentedCo
 	
 	public void onSegmentedControlChange(SegmentedControlView segmentedControl, int sectionIndex) {
 		boolean success = ((MainActivity)getActivity()).setSampleRate(_rates[sectionIndex]);
+		if (!success && getActivity() != null) {
+			Toast.makeText(getActivity(), "Could not set sample rate on this device", Toast.LENGTH_SHORT).show();
+		}
 	}
 
 	@Override  // from midi controller that it has refreshed data
@@ -100,25 +103,14 @@ public class AudioMidiFragment extends Fragment implements Observer, SegmentedCo
 	}
 	
 	private void refreshList(){
-		List<String> deviceInputNames = _usbMidiController.deviceInfos.stream().filter(info->hasInputOrOutput(info, false)).map(info->info.getProperties().getString(MidiDeviceInfo.PROPERTY_NAME)).collect(Collectors.toList());
-		List<String> deviceOutputNames = _usbMidiController.deviceInfos.stream().filter(info->hasInputOrOutput(info, true)).map(info->info.getProperties().getString(MidiDeviceInfo.PROPERTY_NAME)).collect(Collectors.toList());
+		// Android MIDI (android.media.midi) only exists on API 23+.
+		// This Gingerbread build shows empty device lists rather than
+		// referencing classes that are missing on API 9/10.
+		List<String> deviceInputNames = new ArrayList<String>();
+		List<String> deviceOutputNames = new ArrayList<String>();
 		ArrayAdapter<String> adapterInput = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, deviceInputNames);
 		_listViewInput.setAdapter(adapterInput);
 		ArrayAdapter<String> adapterOutput = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, deviceOutputNames);
 		_listViewOutput.setAdapter(adapterOutput);
 	}
-
-	boolean hasInputOrOutput(MidiDeviceInfo info, boolean wantOutput) {
-		MidiDeviceInfo.PortInfo[] portInfos = info.getPorts();
-		for (MidiDeviceInfo.PortInfo portInfo : portInfos) {
-			if (!wantOutput && portInfo.getType() == MidiDeviceInfo.PortInfo.TYPE_INPUT) {
-				return true;
-			}
-			if (wantOutput && portInfo.getType() == MidiDeviceInfo.PortInfo.TYPE_OUTPUT) {
-				return true;
-			}
-		}
-		return false;
-	}
 }
-

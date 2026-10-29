@@ -8,6 +8,7 @@ import org.puredata.core.PdListener;
 import org.puredata.core.utils.PdDispatcher;
 
 import android.content.Context;
+import android.os.Build;
 import android.content.res.AssetManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -71,9 +72,14 @@ public class Widget extends RelativeLayout implements PdListener {
     }
 
     public void reshape() {
-        setLayoutParams(new RelativeLayout.LayoutParams((int) (originalRect.width() * scale), (int)(originalRect.height() * scale)));
-        setX(originalRect.left * scale);
-        setY(originalRect.top * scale);
+        RelativeLayout.LayoutParams _lp = new RelativeLayout.LayoutParams((int) (originalRect.width() * scale), (int)(originalRect.height() * scale));
+        _lp.leftMargin = (int)(originalRect.left * scale);
+        _lp.topMargin = (int)(originalRect.top * scale);
+        setLayoutParams(_lp);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            setX(originalRect.left * scale);
+            setY(originalRect.top * scale);
+        }
     }
 
     public void setup(){

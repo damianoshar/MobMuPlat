@@ -47,9 +47,14 @@ public class Symbol extends AtomWidget {
         }
         RectF dRect = new RectF(Math.round(x), Math.round(y), Math.round(x + width + 8*scale), Math.round(y + (fontSize + 4)*scale));
 
-        setLayoutParams(new RelativeLayout.LayoutParams((int)dRect.width(), (int)dRect.height()));
-        setX(dRect.left);
-        setY(dRect.top);
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams((int)dRect.width(), (int)dRect.height());
+        lp.leftMargin = (int)dRect.left;
+        lp.topMargin = (int)dRect.top;
+        setLayoutParams(lp);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) {
+            setX(dRect.left);
+            setY(dRect.top);
+        }
     }
 
     private void setSymbolValue(String val) {

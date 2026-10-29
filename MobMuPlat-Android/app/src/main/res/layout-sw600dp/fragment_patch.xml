@@ -23,7 +23,7 @@
     	         android:layout_height="65dp"
 				 android:layout_marginLeft="5dp"
 				 android:layout_marginTop="5dp"
-    	         android:background="?android:selectableItemBackground"
+    	         android:background="@android:color/transparent"
     	         android:visibility="gone"/>
     	     <!-- to avoid loading jank, is shown after patch load -->
 

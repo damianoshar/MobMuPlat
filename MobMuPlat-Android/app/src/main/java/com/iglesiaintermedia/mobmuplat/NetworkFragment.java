@@ -41,7 +41,7 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Spinner;
-import android.widget.Switch;
+import android.widget.ToggleButton;
 import android.widget.TextView;
 
 public class NetworkFragment extends Fragment implements SegmentedControlListener, Observer{
@@ -320,7 +320,7 @@ public class NetworkFragment extends Fragment implements SegmentedControlListene
 		private ArrayAdapter<String> _adapter;
 		private ListView _listView;
 		private List<String> _userNamesList;
-		private Switch _enablePingAndConnectSwitch;
+		private ToggleButton _enablePingAndConnectSwitch;
 		private NetworkController _networkController;
 		
 		public PingAndConnectFragment() {
@@ -338,7 +338,7 @@ public class NetworkFragment extends Fragment implements SegmentedControlListene
 			_listView = (ListView)rootView.findViewById(R.id.listView1);
 			_adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, _userNamesList) ;
 			_listView.setAdapter(_adapter);
-			_enablePingAndConnectSwitch = (Switch)rootView.findViewById(R.id.switch1);
+			_enablePingAndConnectSwitch = (ToggleButton)rootView.findViewById(R.id.switch1);
 			
 			_enablePingAndConnectSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 				   @Override
@@ -411,7 +411,7 @@ public class NetworkFragment extends Fragment implements SegmentedControlListene
 		private ListView _listView;
 		private List<String> _userNamesList;
 		private TextView _networkTimeTextView;
-		private Switch _enableLANdiniSwitch;
+		private ToggleButton _enableLANdiniSwitch;
 		private String _syncServerName = "noSyncServer";
 		private NetworkController _networkController;
 		
@@ -432,7 +432,7 @@ public class NetworkFragment extends Fragment implements SegmentedControlListene
 			_listView = (ListView)rootView.findViewById(R.id.listView1);
 			_adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, _userNamesList) ;
 			_listView.setAdapter(_adapter);
-			_enableLANdiniSwitch = (Switch)rootView.findViewById(R.id.switch1);
+			_enableLANdiniSwitch = (ToggleButton)rootView.findViewById(R.id.switch1);
 			
 			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
 				//_enableLANdiniSwitch.setEnabled(false);

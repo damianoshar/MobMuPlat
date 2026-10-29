@@ -25,6 +25,7 @@ import android.content.res.AssetManager;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.text.TextUtils;
@@ -426,8 +427,8 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
             scrollContainer.pageCount = _pageCount;
 
             if (_startPageIndex<_pageCount) {
-                scrollContainer.setScrollX((int)(referenceWidth*screenRatio*_startPageIndex));
-            } else scrollContainer.setScrollX((int)(referenceWidth*screenRatio*(_pageCount-1)));//last page
+                scrollContainer.scrollTo((int)(referenceWidth*screenRatio*_startPageIndex), 0);
+            } else scrollContainer.scrollTo((int)(referenceWidth*screenRatio*(_pageCount-1)), 0);//last page
 
             int layoutWidth = (int)(referenceWidth*screenRatio*_pageCount);
             int layoutHeight = (int)(referenceHeight*screenRatio);
@@ -669,9 +670,14 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
                     }
 
                     //common
-                    control.setLayoutParams(new RelativeLayout.LayoutParams(newFrame.width(), newFrame.height()));
-                    control.setX(newFrame.left);
-                    control.setY(newFrame.top);
+                    RelativeLayout.LayoutParams _lp = new RelativeLayout.LayoutParams(newFrame.width(), newFrame.height());
+                    _lp.leftMargin = newFrame.left;
+                    _lp.topMargin = newFrame.top;
+                    control.setLayoutParams(_lp);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+                        control.setX(newFrame.left);
+                        control.setY(newFrame.top);
+                    }
                     control.controlDelegate = this;
                     control.setColor(color);
                     control.setHighlightColor(highlightColor);

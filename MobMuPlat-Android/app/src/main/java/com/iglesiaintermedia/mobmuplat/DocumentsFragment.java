@@ -1,12 +1,6 @@
 package com.iglesiaintermedia.mobmuplat;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -136,24 +130,17 @@ public class DocumentsFragment extends Fragment implements OnClickListener{
 	}
 
 	private void deleteDirectory(File file) {
-		Path directory = file.toPath();
-		try {
-			Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					Files.delete(file);
-					return FileVisitResult.CONTINUE;
+		File[] children = file.listFiles();
+		if (children != null) {
+			for (File child : children) {
+				if (child.isDirectory()) {
+					deleteDirectory(child);
+				} else {
+					child.delete();
 				}
-
-				@Override
-				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-					Files.delete(dir);
-					return FileVisitResult.CONTINUE;
-				}
-			});
-		} catch (IOException e) {
-			Log.e("DOCUMENTS_FRAGMENT", "Could not delete directory");
+			}
 		}
+		file.delete();
 	}
 
 	private boolean isMMP(String filename) {
@@ -219,9 +206,9 @@ public class DocumentsFragment extends Fragment implements OnClickListener{
 		Drawable background = _showAllFilesButton.getBackground();
 		background.mutate();
         if (!_isListFiltered) {
-            background.setColorFilter(0x55FFFFFF, PorterDuff.Mode.ADD);
+            background.setColorFilter(0x55FFFFFF, PorterDuff.Mode.SRC_ATOP);
         } else {
-            background.setColorFilter(0x00000000, PorterDuff.Mode.ADD); //setting to null wasn't working on some devices.
+            background.clearColorFilter();
         }
         if ( Build.VERSION.SDK_INT >= 16) {
             _showAllFilesButton.setBackground(background);
