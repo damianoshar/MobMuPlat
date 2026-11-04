@@ -134,6 +134,14 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 
 	// important public!
 	public Object usbMidiController; // UsbMidiController on API 23+; Object to allow load on older platforms
+	public volatile boolean sensorScrubPatch = false; // true only while a tilt patch is loaded
+	public volatile boolean sensorScrubEnabled = false; // toggle in the tilt patch
+	public volatile float sensorSmoothing = 0.6f; // 0 = raw tilt, 1 = maximum smoothing
+	private long lastTiltMeterMs = 0;
+	private float smoothedTilt = 0f;
+	private float lastSentTiltNorm = -1f;
+	private long lastTiltSampleNs = 0;
+	private boolean tiltFilterReady = false;
 	public NetworkController networkController;
 
 	// new arch!
@@ -232,9 +240,9 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		PdPreferences.initPreferences(getApplicationContext());
 		initSensors();
 //		initLocation();
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			usbMidiController = new UsbMidiController(this);
-		}
+//		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//			usbMidiController = new UsbMidiController(this);
+//		}
 
 		//allow multicast
 		WifiManager wifi = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -389,10 +397,8 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		switch (requestCode) {
 			case MMP_PERMISSIONS_REQUEST_AUDIO: {
 				// If request is cancelled, the result arrays are empty.
-				if (grantResults.length == 3
-						&& grantResults[0] == PackageManager.PERMISSION_GRANTED
-						&& grantResults[1] == PackageManager.PERMISSION_GRANTED
-						&& grantResults[2] == PackageManager.PERMISSION_GRANTED) {
+				if (grantResults.length > 0
+						&& grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 					postStartupPermissions();
 					launchSplash();
 				} else {
@@ -579,12 +585,16 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 	}
 
 	public void loadScene(String filenameToLoad) { //filename is relative to doc dir.
+		Log.i(TAG, "loadScene called with: " + filenameToLoad);
 		Log.i(TAG, "filename to load:"+filenameToLoad);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB && getActionBar() != null) getActionBar().hide();
 
 		String parentPathString =  new File(MainActivity.getDocumentsFolderPath(this), filenameToLoad).getParentFile().getAbsolutePath();
 		Log.i(TAG, "parentPathString to load:"+parentPathString);
 		String fileJSON = readMMPToString(filenameToLoad, this);
+		sensorScrubPatch = filenameToLoad.toLowerCase().contains("tilt");
+		sensorScrubEnabled = false;
+		Log.i("MOBMUP", "loadScene " + filenameToLoad + " sensorScrubPatch=" + sensorScrubPatch + " this=" + this.hashCode());
 		if (fileJSON == null) { //could not load/find filename...i.e. filename is stale
 			showAlert("Cannot load "+filenameToLoad+", please tap the \"show files\" button twice to refresh the file list");
 		}
@@ -640,6 +650,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 			try {
 				File pdFile = new File(parentPathString != null ? parentPathString : MainActivity.getDocumentsFolderPath(this), pdFilename);
 				openPdFileHandle = PdBase.openPatch(pdFile);
+				Log.i("MOBMUP", "opened pd file " + pdFilename + " handle=" + openPdFileHandle);
 			} catch (FileNotFoundException e) {
 				showAlert("PD file "+pdFilename+" not found.");
 				openPdFileHandle = 0;
@@ -781,7 +792,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 		_compassMsgArray[0] = "/compass";
 
 		SensorManager sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
-		int sensorDelay = SensorManager.SENSOR_DELAY_NORMAL;
+		int sensorDelay = SensorManager.SENSOR_DELAY_GAME; // ~20ms for smoother sensor scrub
 		//
 		// onSensorChanged is now called on a background thread. NOPE! leads to arcane "NewStringUTF" crash? no.
 		HandlerThread handlerThread = new HandlerThread("sensorThread", android.os.Process.THREAD_PRIORITY_BACKGROUND);
@@ -790,6 +801,7 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 
 		
 		Sensor accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		Log.i("MOBMUP", "accel sensor=" + accel);
 		sensorManager.registerListener(this, accel,sensorDelay, handler);
 		Sensor gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 		sensorManager.registerListener(this,  gyro, sensorDelay, handler);
@@ -1151,6 +1163,51 @@ public class MainActivity extends FragmentActivity implements LocationListener, 
 			_accelMsgArray[2] = Float.valueOf(_rawAccelArray[_shouldSwapAxes ? 0 : 1]);
 			_accelMsgArray[3] = Float.valueOf(_rawAccelArray[2]);
 			PdBase.sendList("fromSystem", _accelMsgArray);
+
+			if (sensorScrubPatch && sensorScrubEnabled) {
+				float tilt = _cookedAccelArray[_shouldSwapAxes ? 1 : 0];
+
+				// Fixed gain: the slider smooths hand tremble instead of
+				// changing the range. Time-based filter, so the feel does not
+				// depend on the actual sensor rate. First sample snaps to the
+				// current pose, so enabling does not sweep from zero.
+				long nowNs = System.nanoTime();
+				float dt = lastTiltSampleNs == 0 ? 0.02f : (nowNs - lastTiltSampleNs) / 1.0e9f;
+				lastTiltSampleNs = nowNs;
+				if (dt < 0.005f) dt = 0.005f; else if (dt > 0.1f) dt = 0.1f;
+				if (!tiltFilterReady) {
+					smoothedTilt = tilt;
+					tiltFilterReady = true;
+					lastSentTiltNorm = -1f;
+				}
+				float tau = 0.01f + sensorSmoothing * sensorSmoothing * 0.49f; // 10..500 ms
+				float alpha = 1.0f - (float)Math.exp(-dt / tau);
+				smoothedTilt += alpha * (tilt - smoothedTilt);
+
+				float norm = 0.5f + smoothedTilt * 0.75f; // full page at ~42 deg
+				if (norm < 0) norm = 0; if (norm > 1) norm = 1;
+				try {
+					if (networkController != null
+							&& (lastSentTiltNorm < 0f
+								|| Math.abs(norm - lastSentTiltNorm) >= 0.0005f)) {
+						OSCMessage msg = new OSCMessage("/upic/scrub");
+						msg.addArgument(norm);
+						networkController.sendOSC(msg);
+						lastSentTiltNorm = norm;
+					}
+				} catch (Exception e) {
+					Log.e("MOBMUP", "OSC send error: " + e);
+				}
+				long now = System.currentTimeMillis();
+				if (now - lastTiltMeterMs >= 50) {
+					lastTiltMeterMs = now;
+					PdBase.sendList("/tiltValue", Float.valueOf(norm));
+				}
+			} else {
+				tiltFilterReady = false;
+				lastTiltSampleNs = 0;
+				lastSentTiltNorm = -1f;
+			}
 		} else if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
 			//Log.v(TAG, "gyro "+event.values[0]+" "+event.values[1]+" "+event.values[2] );// diff axes than ios?
 			//Object[] msgArray = {"/gyro", Float.valueOf(event.values[0]), Float.valueOf(event.values[1]), Float.valueOf(event.values[2]) }; 

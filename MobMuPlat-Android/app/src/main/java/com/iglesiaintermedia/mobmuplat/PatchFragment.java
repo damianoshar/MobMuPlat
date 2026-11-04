@@ -88,7 +88,7 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
     public MainActivity _mainActivity;
 
     Map<String, ArrayList<MMPControl>> _allGUIControlMap; //control address, array of objects with that address. Allows multiple items with same address.
-    Set<String> _wearAddressSet;
+    Set<String> _wearAddressSet = new HashSet<String>();
 
     int _bgColor;
     private Button _catchButton; // Just to catch a11y focus and allow footswitch.
@@ -224,6 +224,7 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
     private void loadSceneCommonReset() {
         //TODO check recursion of file paths.
         loadedWearString = null;
+        if (_wearAddressSet == null) _wearAddressSet = new HashSet<String>();
         _wearAddressSet.clear();
         _allGUIControlMap.clear();
         scrollRelativeLayout.removeAllViews();
@@ -555,6 +556,8 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
                                 ((MMPSlider)control).setRange(range);
                             }
                         }
+                        if(guiDict.get("value")!=null)
+                            ((MMPSlider)control).setValue( guiDict.get("value").getAsFloat() );
                     }
                     else if(classString.equals("MMPKnob")){
                         control = new MMPKnob(getActivity(), screenRatio);
@@ -674,10 +677,6 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
                     _lp.leftMargin = newFrame.left;
                     _lp.topMargin = newFrame.top;
                     control.setLayoutParams(_lp);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-                        control.setX(newFrame.left);
-                        control.setY(newFrame.top);
-                    }
                     control.controlDelegate = this;
                     control.setColor(color);
                     control.setHighlightColor(highlightColor);
@@ -764,6 +763,7 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
 
     @Override
     public void receiveList(String source, Object... args) {
+        Log.i("MOBMUP", "receiveList source=" + source + " args=" + Arrays.toString(args));
         if(MainActivity.VERBOSE)Log.i(TAG, "receive list from pd "+source+": " + Arrays.toString(args));
         if (source.equals("toNetwork")) {
             _mainActivity.networkController.handlePDMessage(args);
@@ -785,6 +785,7 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
 //            }
         } else if (source.equals("toSystem")) {
             if (args.length==0) return;
+            Log.i("MOBMUP", "toSystem msg: " + args[0]);
 
             if (args.length>=1 && args[0].equals("/vibrate") ){
                 //orig spec could send just "vibrate" or with arg 0 or 1
@@ -857,16 +858,15 @@ public class PatchFragment extends Fragment implements ControlDelegate, PagingSc
                     builder.append(" ");
                 }
                 showTextDialog(tag, builder.toString());
-            } else if (args.length > 1 && args[0].equals("/confirmationDialog") && (args[1] instanceof String)) {
-                String tag = (String)args[1];
-                //String title = Arrays.copyOfRange(args,2,args.length-1).toString();
-                Object[] titleArray = Arrays.copyOfRange(args, 2, args.length);
-                StringBuilder builder = new StringBuilder();
-                for(Object s : titleArray) {
-                    builder.append(s);
-                    builder.append(" ");
-                }
-                showConfirmationDialog(tag, builder.toString());
+            } else if (args.length >= 2 && (args[0].equals("/smoothing") || args[0].equals("/sensitivity")) && args[1] instanceof Number) {
+                float val = ((Number)args[1]).floatValue();
+                _mainActivity.sensorSmoothing = val;
+                Log.i("MOBMUP", "smoothing received val=" + val);
+                PdBase.sendList("/smoothingApplied", Float.valueOf(val));
+            } else if (args.length >= 2 && args[0].equals("/enableTiltScrub") && args[1] instanceof Number) {
+                float val = ((Number)args[1]).floatValue();
+                _mainActivity.sensorScrubEnabled = (val > 0) && _mainActivity.sensorScrubPatch;
+                Log.i("MOBMUP", "enableTiltScrub received val=" + val + " enabled=" + _mainActivity.sensorScrubEnabled);
             }
         }
     }

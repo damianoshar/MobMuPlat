@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId "com.iglesiaintermedia.mobmuplat"
         minSdkVersion 9
-        targetSdkVersion 9
+        targetSdkVersion 33
         versionCode 27
         versionName "0.39"
     }
@@ -38,7 +38,7 @@ dependencies {
     implementation 'io.github.libpd.android:pd-core:1.2.1-rc6'
 //    implementation project(":pdcore")
 //    implementation 'com.noisepages.nettoyeur:midi:1.0.0-rc1'
-    implementation project(":midi")
+//    implementation project(":midi")
 //    compileOnly 'com.google.android.support:wearable:2.9.0'//1.3.0
 //    implementation 'com.google.android.gms:play-services-wearable:8.4.0'
 //    compileOnly 'com.google.android.wearable:wearable:1.0.0'

@@ -202,6 +202,16 @@ public class NetworkFragment extends Fragment implements SegmentedControlListene
 			        return false;//dismiss keyboard
 			    }
 			});
+			_outputIPEditText.setOnFocusChangeListener(new OnFocusChangeListener() {
+			    @Override
+			    public void onFocusChange(View v, boolean hasFocus) {
+			        if (!hasFocus) {
+			        	String newIPValue = _outputIPEditText.getText().toString();
+			        	Log.i("NETWORK", "focus change text "+newIPValue);
+			        	((MainActivity)getActivity()).networkController.setOutputIPAddress(newIPValue);
+			        }
+			    }
+			});
 			
 			/*String multicastGroupAddress = ((MainActivity)getActivity()).networkController.multicastGroupAddressString;
 			_multicastGroupEditText.setText(multicastGroupAddress);

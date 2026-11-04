@@ -37,8 +37,8 @@ public class AudioMidiFragment extends Fragment implements Observer, SegmentedCo
 		View rootView = inflater.inflate(R.layout.fragment_audiomidi, container,
 				false);
 		
-		_usbMidiController = ((MainActivity)getActivity()).usbMidiController;
-		if (_usbMidiController != null) ((UsbMidiController)_usbMidiController).addObserver(this);
+		//_usbMidiController = ((MainActivity)getActivity()).usbMidiController;
+		//if (_usbMidiController != null) ((UsbMidiController)_usbMidiController).addObserver(this);
 
 		_listViewInput = (ListView)rootView.findViewById(R.id.listViewInput);
 		_listViewOutput = (ListView)rootView.findViewById(R.id.listViewOutput);

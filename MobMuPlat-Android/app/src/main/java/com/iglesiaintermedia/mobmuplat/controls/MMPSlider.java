@@ -128,7 +128,7 @@ public class MMPSlider extends MMPControl{
       }  
     }
     
-    private void setValue(float inVal) {
+    public void setValue(float inVal) {
     	//Log.i("MobMuPlat", this.address+" setval "+newVal);
     	if(range==1){//clip 0.-1.
 	        if(inVal>1)inVal=1;

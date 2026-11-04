@@ -192,7 +192,20 @@ public class NetworkController extends Observable{
 	}
 	
 
-	public void resetOutput(){
+	public void sendOSC(OSCMessage msg) {
+		if (sender != null) {
+			try {
+				sender.send(msg);
+				Log.i("NETWORK", "sendOSC sent to " + outputIPAddressString + ":" + outputPortNumber);
+			} catch (Exception e) {
+				Log.e("NETWORK", "sendOSC error: " + e);
+			}
+		} else {
+			Log.e("NETWORK", "sendOSC: sender is null");
+		}
+	}
+
+	public void resetOutput() {
 		new SetupOSCTask().execute();
 	}
 
@@ -270,6 +283,7 @@ public class NetworkController extends Observable{
             return;
         }
         String address = (String)args[0];
+        Log.i("MOBMUP", "handlePDMessage source=" + (args.length > 0 ? args[0] : "null") + " len=" + args.length);
 
         //look for LANdini - this clause looks for /send, /send/GD, /send/OGD
         //String address = (String)args[0];//check for isntanceof string first

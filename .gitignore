@@ -18,3 +18,9 @@ DerivedData
 # Java
 bin/
 device-backup-*/
+
+# Ignore example/tutorial patches; keep UPIC scrub patches
+Shared/patches/MMPExamples-*
+Shared/patches/MMPTutorial*
+Shared/patches/Welcome*
+*.bak
